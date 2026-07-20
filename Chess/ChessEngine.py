@@ -53,8 +53,8 @@ class GameState():
     '''
     All moves considering checks
     '''
-    #def getValidMoves(self):
-        #return self.getAllPossibleMoves() #For now, we will not worry about checks
+    def getValidMoves(self):
+        return self.getAllPossibleMoves() #For now, we will not worry about checks
     
     '''
     All moves without considering checks
