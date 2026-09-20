@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
-import { useSignUp } from '@clerk/clerk-react';
+import { supabase } from '../lib/supabase';
 
 function GoogleIcon() {
   return (
@@ -14,72 +14,98 @@ function GoogleIcon() {
   );
 }
 
-export default function SignUpScreen({ onBack, onSignIn, onSubmitSignUp }) {
+export default function SignUpScreen({ onBack, onSignIn, onSubmitSignUp, selectedExperience }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const { isLoaded, signUp } = useSignUp();
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage('');
+
     if (!fullName.trim() || !email.trim() || !password.trim()) {
-      alert('Please fill in all required fields.');
+      setErrorMessage('Please fill in all required fields.');
+      return;
+    }
+    if (password.trim().length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
       return;
     }
     if (!agreedToTerms) {
-      alert('Please agree to the Terms of Service and Privacy Policy.');
+      setErrorMessage('Please agree to the Terms of Service and Privacy Policy.');
       return;
     }
 
     setLoading(true);
     try {
-      if (isLoaded && signUp) {
-        const nameParts = fullName.trim().split(' ');
-        const firstName = nameParts[0];
-        const lastName = nameParts.slice(1).join(' ') || '';
+      // 1. Sign up user via Supabase Auth
+      const skillLevelValue = (selectedExperience && selectedExperience !== 'Skip') ? selectedExperience : null;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            skill_level: skillLevelValue,
+          },
+        },
+      });
 
-        await signUp.create({
-          emailAddress: email,
-          password: password,
-          firstName: firstName,
-          lastName: lastName
-        });
+      if (error) {
+        throw error;
+      }
 
-        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-        alert(`Verification email sent to ${email}. Please check your inbox for the code.`);
-      } else {
+      if (data?.user) {
+        // Fallback profile insert in case trigger hasn't run or is not configured yet
+        try {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            full_name: fullName.trim(),
+            skill_level: skillLevelValue,
+            rating: 1200,
+          }, { onConflict: 'id' });
+        } catch (profileErr) {
+          console.warn('Profile upsert notice:', profileErr);
+        }
+
         if (onSubmitSignUp) {
-          onSubmitSignUp({ fullName, email, password });
-        } else {
-          alert(`Account created successfully for ${fullName}!`);
+          onSubmitSignUp({ user: data.user, session: data.session });
         }
       }
     } catch (err) {
       console.error('Sign Up Error:', err);
-      alert(err.errors?.[0]?.message || 'Failed to create account. Please try again.');
+      let msg = err.message || 'Failed to create account. Please try again.';
+      if (msg.includes('User already registered')) {
+        msg = 'An account with this email address already exists. Please Sign In.';
+      } else if (msg.includes('Password should be at least')) {
+        msg = 'Password should be at least 6 characters.';
+      } else if (msg.includes('invalid email')) {
+        msg = 'Please enter a valid email address.';
+      }
+      setErrorMessage(msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleClick = async () => {
+    setErrorMessage('');
     try {
-      if (isLoaded && signUp) {
-        await signUp.authenticateWithRedirect({
-          strategy: 'oauth_google',
-          redirectUrl: window.location.origin,
-          redirectUrlComplete: window.location.origin
-        });
-      } else {
-        alert('Connecting to Google Auth...');
-      }
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
     } catch (err) {
       console.error('Google OAuth Error:', err);
-      alert(err.errors?.[0]?.message || 'Google Auth Error');
+      setErrorMessage(err.message || 'Google Auth failed. Please try again.');
     }
   };
 
@@ -161,6 +187,21 @@ export default function SignUpScreen({ onBack, onSignIn, onSubmitSignUp }) {
           >
             <div className="signup-form-card">
               <form onSubmit={handleSubmit} className="signup-form">
+                {errorMessage && (
+                  <div style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    color: '#fca5a5',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    marginBottom: '1rem',
+                    lineHeight: '1.4'
+                  }}>
+                    {errorMessage}
+                  </div>
+                )}
+
 
                 {/* Field 1: FULL NAME */}
                 <div className="signup-field-group">

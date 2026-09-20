@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
-import { useSignIn } from '@clerk/clerk-react';
+import { supabase } from '../lib/supabase';
 import SeamlessVideoBackground from './SeamlessVideoBackground';
 
 function GoogleIcon() {
@@ -20,63 +20,58 @@ export default function SignInScreen({ onBack, onGoToSignUp, onForgotPassword, o
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const { isLoaded, signIn, setActive } = useSignIn();
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage('');
+
     if (!email.trim() || !password.trim()) {
-      alert('Please enter both email and password.');
+      setErrorMessage('Please enter both email and password.');
       return;
     }
 
     setLoading(true);
     try {
-      if (isLoaded && signIn) {
-        const result = await signIn.create({
-          identifier: email,
-          password: password,
-        });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
+      });
 
-        if (result.status === "complete") {
-          await setActive({ session: result.createdSessionId });
-          if (onSignInSuccess) {
-            onSignInSuccess();
-          } else {
-            alert('Signed in successfully!');
-          }
-        } else {
-          console.log('Sign in result status:', result.status);
-        }
-      } else {
+      if (error) {
+        throw error;
+      }
+
+      if (data?.session) {
         if (onSignInSuccess) {
-          onSignInSuccess({ email });
-        } else {
-          alert(`Signed in successfully for ${email}!`);
+          onSignInSuccess({ user: data.user, session: data.session });
         }
       }
     } catch (err) {
       console.error('Sign In Error:', err);
-      alert(err.errors?.[0]?.message || 'Failed to sign in. Please check your credentials.');
+      let msg = err.message || 'Failed to sign in.';
+      if (msg.includes('Invalid login credentials')) {
+        msg = 'Invalid email or password. Please try again.';
+      }
+      setErrorMessage(msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleClick = async () => {
+    setErrorMessage('');
     try {
-      if (isLoaded && signIn) {
-        await signIn.authenticateWithRedirect({
-          strategy: 'oauth_google',
-          redirectUrl: window.location.origin,
-          redirectUrlComplete: window.location.origin
-        });
-      } else {
-        alert('Connecting to Google Auth...');
-      }
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
     } catch (err) {
       console.error('Google OAuth Error:', err);
-      alert(err.errors?.[0]?.message || 'Google Auth Error');
+      setErrorMessage(err.message || 'Google Auth failed. Please try again.');
     }
   };
 
@@ -155,6 +150,21 @@ export default function SignInScreen({ onBack, onGoToSignUp, onForgotPassword, o
           >
             <div className="signup-form-card">
               <form onSubmit={handleSubmit} className="signup-form">
+                {errorMessage && (
+                  <div style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    color: '#fca5a5',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    marginBottom: '1rem',
+                    lineHeight: '1.4'
+                  }}>
+                    {errorMessage}
+                  </div>
+                )}
+
 
                 {/* Field 1: EMAIL */}
                 <div className="signup-field-group">
