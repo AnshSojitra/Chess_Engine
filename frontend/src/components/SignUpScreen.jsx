@@ -1,0 +1,293 @@
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
+import { useSignUp } from '@clerk/clerk-react';
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
+      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.15C3.26 21.3 7.31 24 12 24z" />
+      <path fill="#FBBC05" d="M5.28 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.61H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.39l3.99-3.15z" />
+      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.61l3.99 3.15c.95-2.85 3.6-4.96 6.72-4.96z" />
+    </svg>
+  );
+}
+
+export default function SignUpScreen({ onBack, onSignIn, onSubmitSignUp }) {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const { isLoaded, signUp } = useSignUp();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+    if (!agreedToTerms) {
+      alert('Please agree to the Terms of Service and Privacy Policy.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (isLoaded && signUp) {
+        const nameParts = fullName.trim().split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        await signUp.create({
+          emailAddress: email,
+          password: password,
+          firstName: firstName,
+          lastName: lastName
+        });
+
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+        alert(`Verification email sent to ${email}. Please check your inbox for the code.`);
+      } else {
+        if (onSubmitSignUp) {
+          onSubmitSignUp({ fullName, email, password });
+        } else {
+          alert(`Account created successfully for ${fullName}!`);
+        }
+      }
+    } catch (err) {
+      console.error('Sign Up Error:', err);
+      alert(err.errors?.[0]?.message || 'Failed to create account. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleClick = async () => {
+    try {
+      if (isLoaded && signUp) {
+        await signUp.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl: window.location.origin,
+          redirectUrlComplete: window.location.origin
+        });
+      } else {
+        alert('Connecting to Google Auth...');
+      }
+    } catch (err) {
+      console.error('Google OAuth Error:', err);
+      alert(err.errors?.[0]?.message || 'Google Auth Error');
+    }
+  };
+
+  return (
+    <div style={{
+      width: '100vw',
+      minHeight: '100vh',
+      minHeight: '100dvh',
+      backgroundColor: '#000000',
+      color: '#FFFFFF',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'relative',
+      overflowX: 'hidden'
+    }}>
+      {/* Left-Side Moving King Video Background (Preserved Exactly on Left) */}
+      <div className="signup-video-container">
+        <video
+          src="/Sign_Up_page_King_Moving.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="signup-video-element"
+        />
+        <div className="signup-video-overlay" />
+      </div>
+
+      {/* Responsive Viewport Content Container */}
+      <div className="signup-viewport" style={{ zIndex: 10 }}>
+
+        {/* Top Header Bar */}
+        <header className="signup-header">
+          {/* Circular Back Button */}
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={onBack}
+            className="welcome-back-btn signup-back-btn"
+            title="Back"
+          >
+            <ChevronLeft size={22} strokeWidth={2.5} />
+          </motion.button>
+        </header>
+
+        {/* 2-Column Body Layout (Left Title/Video, Right Form Partition) */}
+        <div className="signup-body">
+
+          {/* Left Column: Heading + Subtitle + Triple Line Accent */}
+          <motion.div
+            initial={{ opacity: 0, x: -25 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="signup-left-col"
+          >
+            <h1 className="signup-title" style={{ color: '#FFFFFF' }}>
+              CREATE<br />
+              ACCOUNT
+            </h1>
+            <p className="signup-subtitle" style={{ color: 'rgba(255, 255, 255, 0.85)' }}>
+              Join Strategic Chess and start<br />
+              improving your skills today.
+            </p>
+
+            {/* Triple Horizontal Line Motif Accent */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '52px', marginTop: '0.35rem' }}>
+              <div style={{ width: '52px', height: '2.5px', backgroundColor: '#FFFFFF', borderRadius: '1px' }} />
+              <div style={{ width: '40px', height: '2.5px', backgroundColor: '#FFFFFF', borderRadius: '1px' }} />
+              <div style={{ width: '28px', height: '2.5px', backgroundColor: '#FFFFFF', borderRadius: '1px' }} />
+            </div>
+          </motion.div>
+
+          {/* Right Column: Form Partition Container */}
+          <motion.div
+            initial={{ opacity: 0, x: 25 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
+            className="signup-right-col"
+          >
+            <div className="signup-form-card">
+              <form onSubmit={handleSubmit} className="signup-form">
+
+                {/* Field 1: FULL NAME */}
+                <div className="signup-field-group">
+                  <label className="signup-label">FULL NAME</label>
+                  <input
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="signup-input"
+                    required
+                  />
+                </div>
+
+                {/* Field 2: EMAIL */}
+                <div className="signup-field-group">
+                  <label className="signup-label">EMAIL</label>
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="signup-input"
+                    required
+                  />
+                </div>
+
+                {/* Field 3: PASSWORD */}
+                <div className="signup-field-group">
+                  <label className="signup-label">PASSWORD</label>
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Create a password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="signup-input"
+                      style={{ paddingRight: '42px' }}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="signup-password-toggle"
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Checkbox: Terms & Privacy Policy */}
+                <div className="signup-checkbox-row">
+                  <input
+                    type="checkbox"
+                    id="signup-terms"
+                    checked={agreedToTerms}
+                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    className="signup-checkbox"
+                  />
+                  <label htmlFor="signup-terms" className="signup-checkbox-text">
+                    I agree to the <span className="signup-link">Terms of Service</span> and <span className="signup-link">Privacy Policy</span>
+                  </label>
+                </div>
+
+                {/* Primary Action Button */}
+                <motion.button
+                  whileHover={{ scale: 1.015 }}
+                  whileTap={{ scale: 0.985 }}
+                  type="submit"
+                  disabled={loading}
+                  className="signup-submit-btn"
+                >
+                  <span>{loading ? 'CREATING...' : 'CREATE ACCOUNT'}</span>
+                  <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>→</span>
+                </motion.button>
+              </form>
+
+              {/* Separator & Google OAuth Button */}
+              <div className="signup-social-section">
+                <div className="signup-divider">
+                  <span className="signup-divider-line" />
+                  <span className="signup-divider-text">OR CONTINUE WITH</span>
+                  <span className="signup-divider-line" />
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.015 }}
+                  whileTap={{ scale: 0.985 }}
+                  type="button"
+                  onClick={handleGoogleClick}
+                  className="signup-google-btn"
+                >
+                  <GoogleIcon />
+                  <span>Continue with Google</span>
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+
+        </div>
+
+        {/* Bottom Footer Bar */}
+        <footer className="signup-footer">
+          {/* 2x2 Checkerboard Icon Accent */}
+          <div className="checker-accent">
+            <div className="checker-box" style={{ backgroundColor: '#FFFFFF' }} />
+            <div className="checker-box" style={{ backgroundColor: 'rgba(255,255,255,0.25)' }} />
+            <div className="checker-box" style={{ backgroundColor: 'rgba(255,255,255,0.25)' }} />
+            <div className="checker-box" style={{ backgroundColor: '#FFFFFF' }} />
+          </div>
+
+          {/* Right Link: ALREADY HAVE AN ACCOUNT? SIGN IN */}
+          <div className="signup-footer-signin">
+            <span className="signup-footer-text">ALREADY HAVE AN ACCOUNT?</span>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onSignIn}
+              className="signup-signin-btn"
+            >
+              SIGN IN
+            </motion.button>
+          </div>
+        </footer>
+
+      </div>
+    </div>
+  );
+}
