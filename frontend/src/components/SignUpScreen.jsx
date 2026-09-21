@@ -23,6 +23,15 @@ export default function SignUpScreen({ onBack, onSignIn, onSubmitSignUp, selecte
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Clear inputs on component mount so browser autofill doesn't prefill across sign out / sign up
+  React.useEffect(() => {
+    setFullName('');
+    setEmail('');
+    setPassword('');
+    setAgreedToTerms(false);
+    setErrorMessage('');
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -105,7 +114,11 @@ export default function SignUpScreen({ onBack, onSignIn, onSubmitSignUp, selecte
       if (error) throw error;
     } catch (err) {
       console.error('Google OAuth Error:', err);
-      setErrorMessage(err.message || 'Google Auth failed. Please try again.');
+      let msg = err.message || 'Google Auth failed.';
+      if (msg.includes('provider is not enabled') || msg.includes('Unsupported provider')) {
+        msg = 'Google Sign-In is not enabled on your Supabase project yet. Please use Email/Password sign-up, or enable Google Provider in Supabase Dashboard (Authentication -> Providers -> Google).';
+      }
+      setErrorMessage(msg);
     }
   };
 
@@ -186,7 +199,11 @@ export default function SignUpScreen({ onBack, onSignIn, onSubmitSignUp, selecte
             className="signup-right-col"
           >
             <div className="signup-form-card">
-              <form onSubmit={handleSubmit} className="signup-form">
+              <form onSubmit={handleSubmit} className="signup-form" autoComplete="none">
+                {/* Dummy hidden inputs to intercept Chrome aggressive autofill */}
+                <input type="text" name="chrome_prevent_autofill_signup" style={{ display: 'none' }} tabIndex={-1} readOnly />
+                <input type="password" name="chrome_prevent_autofill_signup_pass" style={{ display: 'none' }} tabIndex={-1} readOnly />
+
                 {errorMessage && (
                   <div style={{
                     backgroundColor: 'rgba(239, 68, 68, 0.15)',
@@ -208,6 +225,10 @@ export default function SignUpScreen({ onBack, onSignIn, onSubmitSignUp, selecte
                   <label className="signup-label">FULL NAME</label>
                   <input
                     type="text"
+                    name="chess_signup_fullname_field"
+                    autoComplete="new-password"
+                    readOnly
+                    onFocus={(e) => e.target.removeAttribute('readonly')}
                     placeholder="Enter your full name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
@@ -221,6 +242,10 @@ export default function SignUpScreen({ onBack, onSignIn, onSubmitSignUp, selecte
                   <label className="signup-label">EMAIL</label>
                   <input
                     type="email"
+                    name="chess_signup_email_field"
+                    autoComplete="new-password"
+                    readOnly
+                    onFocus={(e) => e.target.removeAttribute('readonly')}
                     placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -235,6 +260,10 @@ export default function SignUpScreen({ onBack, onSignIn, onSubmitSignUp, selecte
                   <div style={{ position: 'relative', width: '100%' }}>
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      name="chess_signup_password_field"
+                      autoComplete="new-password"
+                      readOnly
+                      onFocus={(e) => e.target.removeAttribute('readonly')}
                       placeholder="Create a password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -242,6 +271,8 @@ export default function SignUpScreen({ onBack, onSignIn, onSubmitSignUp, selecte
                       style={{ paddingRight: '42px' }}
                       required
                     />
+
+
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}

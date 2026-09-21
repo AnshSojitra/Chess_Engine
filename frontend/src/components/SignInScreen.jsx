@@ -22,6 +22,13 @@ export default function SignInScreen({ onBack, onGoToSignUp, onForgotPassword, o
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Explicitly clear form inputs on mount so browser autofill doesn't persist across logout
+  React.useEffect(() => {
+    setEmail('');
+    setPassword('');
+    setErrorMessage('');
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -71,7 +78,11 @@ export default function SignInScreen({ onBack, onGoToSignUp, onForgotPassword, o
       if (error) throw error;
     } catch (err) {
       console.error('Google OAuth Error:', err);
-      setErrorMessage(err.message || 'Google Auth failed. Please try again.');
+      let msg = err.message || 'Google Auth failed.';
+      if (msg.includes('provider is not enabled') || msg.includes('Unsupported provider')) {
+        msg = 'Google Sign-In is not enabled on your Supabase project yet. Please use Email/Password sign-in, or enable Google Provider in Supabase Dashboard (Authentication -> Providers -> Google).';
+      }
+      setErrorMessage(msg);
     }
   };
 
@@ -149,7 +160,11 @@ export default function SignInScreen({ onBack, onGoToSignUp, onForgotPassword, o
             className="signup-right-col"
           >
             <div className="signup-form-card">
-              <form onSubmit={handleSubmit} className="signup-form">
+              <form onSubmit={handleSubmit} className="signup-form" autoComplete="none">
+                {/* Dummy hidden inputs to intercept Chrome aggressive autofill */}
+                <input type="text" name="chrome_prevent_autofill" style={{ display: 'none' }} tabIndex={-1} readOnly />
+                <input type="password" name="chrome_prevent_autofill_pass" style={{ display: 'none' }} tabIndex={-1} readOnly />
+
                 {errorMessage && (
                   <div style={{
                     backgroundColor: 'rgba(239, 68, 68, 0.15)',
@@ -165,12 +180,15 @@ export default function SignInScreen({ onBack, onGoToSignUp, onForgotPassword, o
                   </div>
                 )}
 
-
                 {/* Field 1: EMAIL */}
                 <div className="signup-field-group">
                   <label className="signup-label">EMAIL</label>
                   <input
                     type="email"
+                    name="chess_signin_email_field"
+                    autoComplete="new-password"
+                    readOnly
+                    onFocus={(e) => e.target.removeAttribute('readonly')}
                     placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -185,6 +203,10 @@ export default function SignInScreen({ onBack, onGoToSignUp, onForgotPassword, o
                   <div style={{ position: 'relative', width: '100%' }}>
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      name="chess_signin_password_field"
+                      autoComplete="new-password"
+                      readOnly
+                      onFocus={(e) => e.target.removeAttribute('readonly')}
                       placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -192,6 +214,8 @@ export default function SignInScreen({ onBack, onGoToSignUp, onForgotPassword, o
                       style={{ paddingRight: '42px' }}
                       required
                     />
+
+
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}

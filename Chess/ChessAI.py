@@ -1,9 +1,12 @@
+import os
 import random
 import yaml
 
 # load the config
-with open("config.yaml") as f:
+config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+with open(config_path) as f:
     cfg = yaml.load(f, Loader=yaml.FullLoader)
+
 
 knight_scores = [[-50, -40, -30, -30, -30, -30, -40, -50],
                  [-40, -20, 0, 0, 0, 0, -20, -40],
