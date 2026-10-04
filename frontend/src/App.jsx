@@ -38,8 +38,18 @@ export default function App() {
   };
 
   useEffect(() => {
+    let mounted = true;
+
+    // Safety timeout: Never stay stuck on loading screen longer than 600ms
+    const safetyTimer = setTimeout(() => {
+      if (mounted) {
+        setLoadingSession(false);
+      }
+    }, 600);
+
     // 1. Initial session check on app load
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -47,10 +57,18 @@ export default function App() {
         setCurrentScreen(7); // Authenticated Dashboard Screen
       }
       setLoadingSession(false);
+      clearTimeout(safetyTimer);
+    }).catch(err => {
+      console.warn("Session check notice:", err);
+      if (mounted) {
+        setLoadingSession(false);
+        clearTimeout(safetyTimer);
+      }
     });
 
     // 2. Auth state listener for sign in / sign out / token refreshes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
 
@@ -61,12 +79,16 @@ export default function App() {
         setProfile(null);
       }
       setLoadingSession(false);
+      clearTimeout(safetyTimer);
     });
 
     return () => {
+      mounted = false;
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, []);
+
 
   const handleStartJourney = () => {
     setCurrentScreen(2);
